@@ -12,24 +12,48 @@ export async function processSession(
 	client: Client,
 ): Promise<void> {
 	const session = db.getSession(sessionId);
-	if (!session?.audioPath) {
-		throw new Error(`Session ${sessionId} has no audio path`);
+	if (!session) {
+		throw new Error(`Session ${sessionId} not found`);
+	}
+
+	const tracks = db.getSessionTracks(sessionId);
+	if (tracks.length === 0) {
+		throw new Error(`Session ${sessionId} has no audio tracks`);
 	}
 
 	try {
-		// Transcribe
-		const transcriptionResult = await transcriber.transcribeFile(
-			session.audioPath,
-		);
+		// Fetch guild for display name resolution
+		const guild = await client.guilds.fetch(session.guildId).catch(() => null);
+
+		// Transcribe each user track and combine
+		const parts: string[] = [];
+		for (const track of tracks) {
+			if (!track.audioPath) continue;
+
+			let displayName = track.userId;
+			if (guild) {
+				const member = await guild.members
+					.fetch(track.userId)
+					.catch(() => null);
+				if (member) displayName = member.displayName;
+			}
+
+			const result = await transcriber.transcribeFile(track.audioPath);
+			if (result.text.trim()) {
+				parts.push(`[${displayName}]:\n${result.text.trim()}`);
+			}
+		}
+
+		const combinedTranscript = parts.join("\n\n");
 		db.saveTranscript({
 			sessionId,
 			provider: "whisper",
-			content: transcriptionResult.text,
+			content: combinedTranscript || "(音声なし)",
 		});
 
 		// Summarize
 		const llmResponse = await llm.complete(
-			buildSummarizationMessages(transcriptionResult.text),
+			buildSummarizationMessages(combinedTranscript),
 		);
 		db.saveSummary({
 			sessionId,

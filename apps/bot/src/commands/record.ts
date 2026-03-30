@@ -1,5 +1,6 @@
 import {
 	ChannelType,
+	MessageFlags,
 	SlashCommandBuilder,
 	type VoiceChannel,
 } from "discord.js";
@@ -37,7 +38,7 @@ export function createRecordCommand(services: AppServices): Command {
 			if (voiceManager.isRecording) {
 				await interaction.reply({
 					content: "すでに録音中です。先に `/record stop` で停止してください。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -54,7 +55,7 @@ export function createRecordCommand(services: AppServices): Command {
 				await interaction.reply({
 					content:
 						"参加するボイスチャンネルが見つかりません。ボイスチャンネルに入るか、チャンネルを指定してください。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -83,7 +84,7 @@ export function createRecordCommand(services: AppServices): Command {
 			if (!voiceManager.isRecording) {
 				await interaction.reply({
 					content: "録音中ではありません。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -92,7 +93,7 @@ export function createRecordCommand(services: AppServices): Command {
 			if (!sessionId) {
 				await interaction.reply({
 					content: "セッションが見つかりません。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -100,9 +101,9 @@ export function createRecordCommand(services: AppServices): Command {
 			await interaction.deferReply();
 
 			try {
-				const audioPath = await voiceManager.stopSession();
+				const tracks = await voiceManager.stopSession();
 
-				if (audioPath === null) {
+				if (tracks === null || tracks.length === 0) {
 					db.updateSessionStatus(sessionId, "failed");
 					await interaction.editReply(
 						"録音を停止しましたが、音声データが記録されていませんでした。",
@@ -111,7 +112,13 @@ export function createRecordCommand(services: AppServices): Command {
 				}
 
 				db.updateSessionStatus(sessionId, "processing");
-				db.updateSessionAudioPath(sessionId, audioPath);
+				for (const track of tracks) {
+					db.saveSessionTrack({
+						sessionId,
+						userId: track.userId,
+						audioPath: track.audioPath,
+					});
+				}
 
 				await interaction.editReply(
 					`録音を停止しました。セッション ID: \`${sessionId}\`\n文字起こし・要約処理中です…完了後にお知らせします。`,

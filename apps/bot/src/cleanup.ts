@@ -6,24 +6,26 @@ export function startCleanupScheduler(
 	intervalMs = 60 * 60 * 1000,
 ): void {
 	const run = () => {
-		const expired = db.getExpiredAudioSessions();
-		for (const session of expired) {
-			if (session.audioPath) {
+		const expiredTracks = db.getExpiredTrackAudio();
+		for (const track of expiredTracks) {
+			if (track.audioPath) {
 				try {
-					fs.unlinkSync(session.audioPath);
+					fs.unlinkSync(track.audioPath);
 				} catch (err: unknown) {
 					if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
 						console.error(
-							`Failed to delete audio file ${session.audioPath}:`,
+							`Failed to delete audio file ${track.audioPath}:`,
 							err,
 						);
 					}
 				}
-				db.clearAudioPath(session.id);
+				db.clearTrackAudioPath(track.id);
 			}
 		}
-		if (expired.length > 0) {
-			console.log(`Cleanup: deleted ${expired.length} expired audio file(s)`);
+		if (expiredTracks.length > 0) {
+			console.log(
+				`Cleanup: deleted ${expiredTracks.length} expired audio track file(s)`,
+			);
 		}
 	};
 

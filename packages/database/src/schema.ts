@@ -8,10 +8,17 @@ export const sessions = sqliteTable("sessions", {
 	status: text("status")
 		.notNull()
 		.$type<"recording" | "processing" | "done" | "failed">(),
-	audioPath: text("audio_path"),
 	startedAt: integer("started_at").notNull(),
 	finishedAt: integer("finished_at"),
 	expiresAt: integer("expires_at").notNull(),
+});
+
+export const sessionTracks = sqliteTable("session_tracks", {
+	id: text("id").primaryKey(),
+	sessionId: text("session_id").notNull(),
+	userId: text("user_id").notNull(),
+	audioPath: text("audio_path"),
+	createdAt: integer("created_at").notNull(),
 });
 
 export const transcripts = sqliteTable("transcripts", {
@@ -31,6 +38,7 @@ export const summaries = sqliteTable("summaries", {
 });
 
 export type Session = typeof sessions.$inferSelect;
+export type SessionTrack = typeof sessionTracks.$inferSelect;
 export type Transcript = typeof transcripts.$inferSelect;
 export type Summary = typeof summaries.$inferSelect;
 export type SessionStatus = "recording" | "processing" | "done" | "failed";

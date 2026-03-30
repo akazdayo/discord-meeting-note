@@ -43,7 +43,11 @@ export function createSummarizeCommand(services: AppServices): Command {
 			return;
 		}
 
-		db.updateSessionAudioPath(session.id, destPath);
+		db.saveSessionTrack({
+			sessionId: session.id,
+			userId: interaction.user.id,
+			audioPath: destPath,
+		});
 
 		await interaction.editReply(
 			`セッション \`${session.id}\` を作成しました。処理中です…完了後にお知らせします。`,

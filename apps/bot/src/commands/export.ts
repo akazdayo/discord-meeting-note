@@ -1,5 +1,5 @@
 import type { ChatInputCommandInteraction } from "discord.js";
-import { AttachmentBuilder, SlashCommandBuilder } from "discord.js";
+import { AttachmentBuilder, MessageFlags, SlashCommandBuilder } from "discord.js";
 import type { AppServices, Command } from "./index.js";
 
 export function createExportCommand(services: AppServices): Command {
@@ -41,36 +41,34 @@ export function createExportCommand(services: AppServices): Command {
 		if (!session) {
 			await interaction.reply({
 				content: `セッション \`${id}\` が見つかりません。`,
-				ephemeral: true,
+				flags: MessageFlags.Ephemeral,
 			});
 			return;
 		}
 
 		if (sub === "audio") {
-			if (!session.audioPath) {
+			const tracks = db.getSessionTracks(id);
+			const availableTracks = tracks.filter((t) => t.audioPath !== null);
+			if (availableTracks.length === 0) {
 				await interaction.reply({
 					content: "音声ファイルは削除されています（TTL 切れ）。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
-			if (session.status !== "done") {
-				await interaction.reply({
-					content: "まだ処理中です。完了後に再試行してください。",
-					ephemeral: true,
-				});
-				return;
-			}
-			const attachment = new AttachmentBuilder(session.audioPath, {
-				name: `${id}.ogg`,
-			});
-			await interaction.reply({ files: [attachment] });
+			const attachments = availableTracks.map(
+				(t) =>
+					new AttachmentBuilder(t.audioPath as string, {
+						name: `${id}_${t.userId}.ogg`,
+					}),
+			);
+			await interaction.reply({ files: attachments });
 		} else if (sub === "transcript") {
 			const transcript = db.getTranscript(id);
 			if (!transcript) {
 				await interaction.reply({
 					content: "文字起こし結果がまだありません。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -80,7 +78,7 @@ export function createExportCommand(services: AppServices): Command {
 			if (!summary) {
 				await interaction.reply({
 					content: "要約がまだありません。",
-					ephemeral: true,
+					flags: MessageFlags.Ephemeral,
 				});
 				return;
 			}
@@ -97,7 +95,7 @@ async function replyText(
 	filename: string,
 ): Promise<void> {
 	if (!content.trim()) {
-		await interaction.reply({ content: "（内容が空です）", ephemeral: true });
+		await interaction.reply({ content: "（内容が空です）", flags: MessageFlags.Ephemeral });
 		return;
 	}
 	if (content.length <= 2000) {

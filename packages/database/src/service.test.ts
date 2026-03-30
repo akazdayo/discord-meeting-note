@@ -26,7 +26,6 @@ describe("DatabaseService", () => {
 			expect(session.channelId).toBe("channel-1");
 			expect(session.requestedBy).toBe("user-1");
 			expect(session.status).toBe("recording");
-			expect(session.audioPath).toBeNull();
 			expect(session.finishedAt).toBeNull();
 			expect(session.startedAt).toBeGreaterThan(0);
 			expect(session.expiresAt).toBe(
@@ -101,26 +100,32 @@ describe("DatabaseService", () => {
 		});
 	});
 
-	describe("updateSessionAudioPath", () => {
-		it("should set an audio path", () => {
+	describe("saveSessionTrack / getSessionTracks", () => {
+		it("should save and retrieve tracks for a session", () => {
 			const session = db.createSession({
 				guildId: "g",
 				channelId: "c",
 				requestedBy: "u",
 			});
-			db.updateSessionAudioPath(session.id, "/data/audio/test.ogg");
-			expect(db.getSession(session.id)?.audioPath).toBe("/data/audio/test.ogg");
+			db.saveSessionTrack({
+				sessionId: session.id,
+				userId: "user-1",
+				audioPath: "/data/audio/session_user-1.ogg",
+			});
+			db.saveSessionTrack({
+				sessionId: session.id,
+				userId: "user-2",
+				audioPath: "/data/audio/session_user-2.ogg",
+			});
+
+			const tracks = db.getSessionTracks(session.id);
+			expect(tracks).toHaveLength(2);
+			expect(tracks.map((t) => t.userId)).toContain("user-1");
+			expect(tracks.map((t) => t.userId)).toContain("user-2");
 		});
 
-		it("should clear an audio path to null", () => {
-			const session = db.createSession({
-				guildId: "g",
-				channelId: "c",
-				requestedBy: "u",
-			});
-			db.updateSessionAudioPath(session.id, "/data/audio/test.ogg");
-			db.updateSessionAudioPath(session.id, null);
-			expect(db.getSession(session.id)?.audioPath).toBeNull();
+		it("should return empty array when no tracks exist", () => {
+			expect(db.getSessionTracks("no-such-session")).toHaveLength(0);
 		});
 	});
 
@@ -173,38 +178,44 @@ describe("DatabaseService", () => {
 		});
 	});
 
-	describe("getExpiredAudioSessions", () => {
-		it("should return sessions past expires_at with an audio path", () => {
+	describe("getExpiredTrackAudio", () => {
+		it("should return no tracks when none are expired", () => {
 			const session = db.createSession({
 				guildId: "g",
 				channelId: "c",
 				requestedBy: "u",
 			});
-			db.updateSessionAudioPath(session.id, "/data/audio/test.ogg");
-
-			// Manually override expires_at to the past via raw SQL — not possible through service,
-			// so we create a second service instance on the same DB to manipulate:
-			// Instead, rely on the fact that expiresAt = startedAt + 7 days, which is in the future.
-			// So no sessions should be returned here.
-			expect(db.getExpiredAudioSessions()).toHaveLength(0);
+			db.saveSessionTrack({
+				sessionId: session.id,
+				userId: "user-1",
+				audioPath: "/data/audio/test.ogg",
+			});
+			// expiresAt is 7 days in the future, so nothing should be expired
+			expect(db.getExpiredTrackAudio()).toHaveLength(0);
 		});
 
-		it("should not return sessions without audio path", () => {
+		it("should return no tracks when audioPath is null", () => {
 			db.createSession({ guildId: "g", channelId: "c", requestedBy: "u" });
-			expect(db.getExpiredAudioSessions()).toHaveLength(0);
+			expect(db.getExpiredTrackAudio()).toHaveLength(0);
 		});
 	});
 
-	describe("clearAudioPath", () => {
+	describe("clearTrackAudioPath", () => {
 		it("should set audio_path to null", () => {
 			const session = db.createSession({
 				guildId: "g",
 				channelId: "c",
 				requestedBy: "u",
 			});
-			db.updateSessionAudioPath(session.id, "/data/audio/test.ogg");
-			db.clearAudioPath(session.id);
-			expect(db.getSession(session.id)?.audioPath).toBeNull();
+			db.saveSessionTrack({
+				sessionId: session.id,
+				userId: "user-1",
+				audioPath: "/data/audio/test.ogg",
+			});
+			const [track] = db.getSessionTracks(session.id);
+			db.clearTrackAudioPath(track.id);
+			const [updated] = db.getSessionTracks(session.id);
+			expect(updated.audioPath).toBeNull();
 		});
 	});
 });

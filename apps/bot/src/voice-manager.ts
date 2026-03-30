@@ -18,16 +18,15 @@ import prism from "prism-media";
 
 const execFileAsync = promisify(execFile);
 
-interface TimestampedChunk {
+export interface UserTrack {
 	userId: string;
-	timestamp: number;
-	data: Buffer;
+	audioPath: string;
 }
 
 export class VoiceManager extends EventEmitter {
 	private guildId: string | null = null;
 	private activeStreams = new Set<string>();
-	private recordingChunks: TimestampedChunk[] = [];
+	private recordingChunks: Map<string, Buffer[]> = new Map();
 	private currentSessionId: string | null = null;
 	private _isRecording = false;
 
@@ -43,75 +42,88 @@ export class VoiceManager extends EventEmitter {
 		return this.currentSessionId;
 	}
 
-	async startSession(channel: VoiceBasedChannel, sessionId: string): Promise<void> {
-		console.log(`[VoiceManager] startSession: sessionId=${sessionId} channel=${channel.name}`);
+	async startSession(
+		channel: VoiceBasedChannel,
+		sessionId: string,
+	): Promise<void> {
+		console.log(
+			`[VoiceManager] startSession: sessionId=${sessionId} channel=${channel.name}`,
+		);
 		this._isRecording = true;
 		this.currentSessionId = sessionId;
-		this.recordingChunks = [];
+		this.recordingChunks = new Map();
 		await this.join(channel);
 	}
 
-	async stopSession(): Promise<string | null> {
+	async stopSession(): Promise<UserTrack[] | null> {
 		if (!this.currentSessionId) {
 			throw new Error("No active recording session");
 		}
 		const sessionId = this.currentSessionId;
-		console.log(`[VoiceManager] stopSession: sessionId=${sessionId} chunks=${this.recordingChunks.length}`);
+		const totalChunks = [...this.recordingChunks.values()].reduce(
+			(n, c) => n + c.length,
+			0,
+		);
+		console.log(
+			`[VoiceManager] stopSession: sessionId=${sessionId} users=${this.recordingChunks.size} chunks=${totalChunks}`,
+		);
 		this._isRecording = false;
 		this.leave();
 
-		if (this.recordingChunks.length === 0) {
+		if (this.recordingChunks.size === 0) {
 			console.log("[VoiceManager] stopSession: no audio chunks recorded");
 			this.currentSessionId = null;
 			return null;
 		}
 
-		// Sort chunks by timestamp and concatenate PCM
-		const sorted = [...this.recordingChunks].sort(
-			(a, b) => a.timestamp - b.timestamp,
-		);
-		const pcm = Buffer.concat(sorted.map((c) => c.data));
+		const tracks: UserTrack[] = [];
+		for (const [userId, chunks] of this.recordingChunks) {
+			const pcm = Buffer.concat(chunks);
+			const tmpPcm = path.join(os.tmpdir(), `${sessionId}_${userId}.pcm`);
+			const oggPath = path.join(this.audioDir, `${sessionId}_${userId}.ogg`);
 
-		// Write temp PCM file
-		const tmpPcm = path.join(os.tmpdir(), `${sessionId}.pcm`);
-		const oggPath = path.join(this.audioDir, `${sessionId}.ogg`);
-
-		fs.writeFileSync(tmpPcm, pcm);
-		try {
-			await execFileAsync("ffmpeg", [
-				"-y",
-				"-f",
-				"s16le",
-				"-ar",
-				"48000",
-				"-ac",
-				"2",
-				"-i",
-				tmpPcm,
-				"-c:a",
-				"libopus",
-				oggPath,
-			]);
-		} finally {
-			fs.rmSync(tmpPcm, { force: true });
+			fs.writeFileSync(tmpPcm, pcm);
+			try {
+				await execFileAsync("ffmpeg", [
+					"-y",
+					"-f",
+					"s16le",
+					"-ar",
+					"48000",
+					"-ac",
+					"2",
+					"-i",
+					tmpPcm,
+					"-c:a",
+					"libopus",
+					oggPath,
+				]);
+				tracks.push({ userId, audioPath: oggPath });
+			} finally {
+				fs.rmSync(tmpPcm, { force: true });
+			}
 		}
 
-		this.recordingChunks = [];
+		this.recordingChunks = new Map();
 		this.currentSessionId = null;
 
-		return oggPath;
+		return tracks.length > 0 ? tracks : null;
 	}
 
 	private async join(channel: VoiceBasedChannel): Promise<void> {
 		// 既存のゾンビ接続を先に破棄
 		const existing = getVoiceConnection(channel.guild.id);
 		if (existing) {
-			console.log(`[VoiceManager] destroying existing connection (status=${existing.state.status})`);
+			console.log(
+				`[VoiceManager] destroying existing connection (status=${existing.state.status})`,
+			);
 			existing.destroy();
 		}
 
 		this.guildId = channel.guild.id;
-		console.log(`[VoiceManager] join: channelId=${channel.id} guildId=${channel.guild.id}`);
+		console.log(
+			`[VoiceManager] join: channelId=${channel.id} guildId=${channel.guild.id}`,
+		);
 
 		const connection = joinVoiceChannel({
 			channelId: channel.id,
@@ -121,7 +133,9 @@ export class VoiceManager extends EventEmitter {
 		});
 
 		connection.on("stateChange", (oldState, newState) => {
-			console.log(`[VoiceManager] connection state: ${oldState.status} -> ${newState.status}`);
+			console.log(
+				`[VoiceManager] connection state: ${oldState.status} -> ${newState.status}`,
+			);
 		});
 
 		connection.on("debug", (message) => {
@@ -129,7 +143,9 @@ export class VoiceManager extends EventEmitter {
 		});
 
 		connection.on(VoiceConnectionStatus.Disconnected, async () => {
-			console.log("[VoiceManager] connection disconnected — checking if reconnecting");
+			console.log(
+				"[VoiceManager] connection disconnected — checking if reconnecting",
+			);
 			try {
 				await Promise.race([
 					entersState(connection, VoiceConnectionStatus.Signalling, 5_000),
@@ -137,7 +153,9 @@ export class VoiceManager extends EventEmitter {
 				]);
 				console.log("[VoiceManager] reconnecting...");
 			} catch {
-				console.log("[VoiceManager] could not reconnect, destroying connection");
+				console.log(
+					"[VoiceManager] could not reconnect, destroying connection",
+				);
 				connection.destroy();
 				this.cleanup();
 			}
@@ -152,7 +170,9 @@ export class VoiceManager extends EventEmitter {
 		try {
 			await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
 		} catch (error) {
-			console.error("[VoiceManager] failed to reach Ready state, destroying connection");
+			console.error(
+				"[VoiceManager] failed to reach Ready state, destroying connection",
+			);
 			connection.destroy();
 			this.guildId = null;
 			throw error;
@@ -167,7 +187,9 @@ export class VoiceManager extends EventEmitter {
 		console.log("[VoiceManager] startListening: waiting for speaking events");
 
 		receiver.speaking.on("start", (userId) => {
-			console.log(`[VoiceManager] speaking start: userId=${userId} isRecording=${this._isRecording} alreadyActive=${this.activeStreams.has(userId)}`);
+			console.log(
+				`[VoiceManager] speaking start: userId=${userId} isRecording=${this._isRecording} alreadyActive=${this.activeStreams.has(userId)}`,
+			);
 			if (this.activeStreams.has(userId)) return;
 			this.activeStreams.add(userId);
 
@@ -184,25 +206,35 @@ export class VoiceManager extends EventEmitter {
 				rate: 48000,
 			});
 
+			decoder.on("error", (error) => {
+				console.error(`[VoiceManager] decoder error: userId=${userId}`, error);
+				this.activeStreams.delete(userId);
+				stream.destroy();
+			});
+
 			let chunkCount = 0;
 			stream.pipe(decoder).on("data", (chunk: Buffer) => {
 				chunkCount++;
 				if (chunkCount === 1) {
-					console.log(`[VoiceManager] first audio chunk from userId=${userId} isRecording=${this._isRecording}`);
+					console.log(
+						`[VoiceManager] first audio chunk from userId=${userId} isRecording=${this._isRecording}`,
+					);
 				}
 				if (this._isRecording) {
-					this.recordingChunks.push({
-						userId,
-						timestamp: Date.now(),
-						data: chunk,
-					});
+					const userChunks = this.recordingChunks.get(userId) ?? [];
+					userChunks.push(chunk);
+					this.recordingChunks.set(userId, userChunks);
 				} else {
-					console.log(`[VoiceManager] chunk dropped (not recording) userId=${userId}`);
+					console.log(
+						`[VoiceManager] chunk dropped (not recording) userId=${userId}`,
+					);
 				}
 			});
 
 			stream.on("end", () => {
-				console.log(`[VoiceManager] stream end: userId=${userId} chunks=${chunkCount}`);
+				console.log(
+					`[VoiceManager] stream end: userId=${userId} chunks=${chunkCount}`,
+				);
 				this.activeStreams.delete(userId);
 			});
 
