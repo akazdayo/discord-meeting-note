@@ -1,5 +1,5 @@
 import BetterSqlite3 from "better-sqlite3";
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, asc, eq, isNotNull, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { ulid } from "ulid";
 import type {
@@ -8,6 +8,7 @@ import type {
 	SessionTrack,
 	Summary,
 	Transcript,
+	SessionUtterance,
 } from "./schema.js";
 import * as schema from "./schema.js";
 
@@ -45,6 +46,15 @@ export class DatabaseService {
 				session_id TEXT NOT NULL,
 				provider TEXT NOT NULL,
 				content TEXT NOT NULL,
+				created_at INTEGER NOT NULL
+			);
+			CREATE TABLE IF NOT EXISTS session_utterances (
+				id TEXT PRIMARY KEY,
+				session_id TEXT NOT NULL,
+				user_id TEXT NOT NULL,
+				audio_path TEXT,
+				started_at_ms INTEGER NOT NULL,
+				ended_at_ms INTEGER NOT NULL,
 				created_at INTEGER NOT NULL
 			);
 			CREATE TABLE IF NOT EXISTS summaries (
@@ -139,6 +149,39 @@ export class DatabaseService {
 			.get();
 	}
 
+	saveSessionUtterance(data: {
+		sessionId: string;
+		userId: string;
+		audioPath: string;
+		startedAtMs: number;
+		endedAtMs: number;
+	}): void {
+		this.db
+			.insert(schema.sessionUtterances)
+			.values({
+				id: ulid(),
+				sessionId: data.sessionId,
+				userId: data.userId,
+				audioPath: data.audioPath,
+				startedAtMs: data.startedAtMs,
+				endedAtMs: data.endedAtMs,
+				createdAt: Date.now(),
+			})
+			.run();
+	}
+
+	getSessionUtterances(sessionId: string): SessionUtterance[] {
+		return this.db
+			.select()
+			.from(schema.sessionUtterances)
+			.where(eq(schema.sessionUtterances.sessionId, sessionId))
+			.orderBy(
+				asc(schema.sessionUtterances.startedAtMs),
+				asc(schema.sessionUtterances.createdAt),
+			)
+			.all();
+	}
+
 	getSummary(sessionId: string): Summary | undefined {
 		return this.db
 			.select()
@@ -195,11 +238,44 @@ export class DatabaseService {
 			.all();
 	}
 
+	getExpiredUtteranceAudio(): SessionUtterance[] {
+		return this.db
+			.select({
+				id: schema.sessionUtterances.id,
+				sessionId: schema.sessionUtterances.sessionId,
+				userId: schema.sessionUtterances.userId,
+				audioPath: schema.sessionUtterances.audioPath,
+				startedAtMs: schema.sessionUtterances.startedAtMs,
+				endedAtMs: schema.sessionUtterances.endedAtMs,
+				createdAt: schema.sessionUtterances.createdAt,
+			})
+			.from(schema.sessionUtterances)
+			.innerJoin(
+				schema.sessions,
+				eq(schema.sessionUtterances.sessionId, schema.sessions.id),
+			)
+			.where(
+				and(
+					lt(schema.sessions.expiresAt, Date.now()),
+					isNotNull(schema.sessionUtterances.audioPath),
+				),
+			)
+			.all();
+	}
+
 	clearTrackAudioPath(id: string): void {
 		this.db
 			.update(schema.sessionTracks)
 			.set({ audioPath: null })
 			.where(eq(schema.sessionTracks.id, id))
+			.run();
+	}
+
+	clearUtteranceAudioPath(id: string): void {
+		this.db
+			.update(schema.sessionUtterances)
+			.set({ audioPath: null })
+			.where(eq(schema.sessionUtterances.id, id))
 			.run();
 	}
 }

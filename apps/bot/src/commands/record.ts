@@ -101,9 +101,12 @@ export function createRecordCommand(services: AppServices): Command {
 			await interaction.deferReply();
 
 			try {
-				const tracks = await voiceManager.stopSession();
+				const result = await voiceManager.stopSession();
 
-				if (tracks === null || tracks.length === 0) {
+				if (
+					result === null ||
+					(result.tracks.length === 0 && result.utterances.length === 0)
+				) {
 					db.updateSessionStatus(sessionId, "failed");
 					await interaction.editReply(
 						"録音を停止しましたが、音声データが記録されていませんでした。",
@@ -112,11 +115,20 @@ export function createRecordCommand(services: AppServices): Command {
 				}
 
 				db.updateSessionStatus(sessionId, "processing");
-				for (const track of tracks) {
+				for (const track of result.tracks) {
 					db.saveSessionTrack({
 						sessionId,
 						userId: track.userId,
 						audioPath: track.audioPath,
+					});
+				}
+				for (const utterance of result.utterances) {
+					db.saveSessionUtterance({
+						sessionId,
+						userId: utterance.userId,
+						audioPath: utterance.audioPath,
+						startedAtMs: utterance.startedAtMs,
+						endedAtMs: utterance.endedAtMs,
 					});
 				}
 

@@ -129,6 +129,38 @@ describe("DatabaseService", () => {
 		});
 	});
 
+	describe("saveSessionUtterance / getSessionUtterances", () => {
+		it("should save and retrieve utterances in chronological order", () => {
+			const session = db.createSession({
+				guildId: "g",
+				channelId: "c",
+				requestedBy: "u",
+			});
+			db.saveSessionUtterance({
+				sessionId: session.id,
+				userId: "user-2",
+				audioPath: "/data/audio/utt-2.ogg",
+				startedAtMs: 2_000,
+				endedAtMs: 2_500,
+			});
+			db.saveSessionUtterance({
+				sessionId: session.id,
+				userId: "user-1",
+				audioPath: "/data/audio/utt-1.ogg",
+				startedAtMs: 1_000,
+				endedAtMs: 1_500,
+			});
+
+			const utterances = db.getSessionUtterances(session.id);
+			expect(utterances).toHaveLength(2);
+			expect(utterances.map((u) => u.userId)).toEqual(["user-1", "user-2"]);
+		});
+
+		it("should return empty array when no utterances exist", () => {
+			expect(db.getSessionUtterances("no-such-session")).toHaveLength(0);
+		});
+	});
+
 	describe("saveTranscript / getTranscript", () => {
 		it("should save and retrieve a transcript", () => {
 			const session = db.createSession({
@@ -215,6 +247,27 @@ describe("DatabaseService", () => {
 			const [track] = db.getSessionTracks(session.id);
 			db.clearTrackAudioPath(track.id);
 			const [updated] = db.getSessionTracks(session.id);
+			expect(updated.audioPath).toBeNull();
+		});
+	});
+
+	describe("clearUtteranceAudioPath", () => {
+		it("should set utterance audio_path to null", () => {
+			const session = db.createSession({
+				guildId: "g",
+				channelId: "c",
+				requestedBy: "u",
+			});
+			db.saveSessionUtterance({
+				sessionId: session.id,
+				userId: "user-1",
+				audioPath: "/data/audio/utt.ogg",
+				startedAtMs: 1_000,
+				endedAtMs: 1_500,
+			});
+			const [utterance] = db.getSessionUtterances(session.id);
+			db.clearUtteranceAudioPath(utterance.id);
+			const [updated] = db.getSessionUtterances(session.id);
 			expect(updated.audioPath).toBeNull();
 		});
 	});

@@ -29,6 +29,16 @@ export const transcripts = sqliteTable("transcripts", {
 	createdAt: integer("created_at").notNull(),
 });
 
+export const sessionUtterances = sqliteTable("session_utterances", {
+	id: text("id").primaryKey(),
+	sessionId: text("session_id").notNull(),
+	userId: text("user_id").notNull(),
+	audioPath: text("audio_path"),
+	startedAtMs: integer("started_at_ms").notNull(),
+	endedAtMs: integer("ended_at_ms").notNull(),
+	createdAt: integer("created_at").notNull(),
+});
+
 export const summaries = sqliteTable("summaries", {
 	id: text("id").primaryKey(),
 	sessionId: text("session_id").notNull(),
@@ -40,5 +50,6 @@ export const summaries = sqliteTable("summaries", {
 export type Session = typeof sessions.$inferSelect;
 export type SessionTrack = typeof sessionTracks.$inferSelect;
 export type Transcript = typeof transcripts.$inferSelect;
+export type SessionUtterance = typeof sessionUtterances.$inferSelect;
 export type Summary = typeof summaries.$inferSelect;
 export type SessionStatus = "recording" | "processing" | "done" | "failed";

@@ -11,6 +11,13 @@ export interface TranscriptionResult {
 	confidence?: number;
 }
 
+export interface UtteranceSegment {
+	userId: string;
+	audioPath: string;
+	startedAtMs: number;
+	endedAtMs: number;
+}
+
 export interface LLMMessage {
 	role: "system" | "user" | "assistant";
 	content: string;

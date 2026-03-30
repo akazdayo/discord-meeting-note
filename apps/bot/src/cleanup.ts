@@ -7,6 +7,8 @@ export function startCleanupScheduler(
 ): void {
 	const run = () => {
 		const expiredTracks = db.getExpiredTrackAudio();
+		const expiredUtterances = db.getExpiredUtteranceAudio();
+
 		for (const track of expiredTracks) {
 			if (track.audioPath) {
 				try {
@@ -22,9 +24,27 @@ export function startCleanupScheduler(
 				db.clearTrackAudioPath(track.id);
 			}
 		}
-		if (expiredTracks.length > 0) {
+
+		for (const utterance of expiredUtterances) {
+			if (utterance.audioPath) {
+				try {
+					fs.unlinkSync(utterance.audioPath);
+				} catch (err: unknown) {
+					if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+						console.error(
+							`Failed to delete utterance audio file ${utterance.audioPath}:`,
+							err,
+						);
+					}
+				}
+				db.clearUtteranceAudioPath(utterance.id);
+			}
+		}
+
+		const deletedCount = expiredTracks.length + expiredUtterances.length;
+		if (deletedCount > 0) {
 			console.log(
-				`Cleanup: deleted ${expiredTracks.length} expired audio track file(s)`,
+				`Cleanup: deleted ${deletedCount} expired audio file(s)`,
 			);
 		}
 	};
