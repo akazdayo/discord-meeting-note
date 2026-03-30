@@ -96,6 +96,10 @@ async function replyText(
 	content: string,
 	filename: string,
 ): Promise<void> {
+	if (!content.trim()) {
+		await interaction.reply({ content: "（内容が空です）", ephemeral: true });
+		return;
+	}
 	if (content.length <= 2000) {
 		await interaction.reply({ content });
 	} else {
