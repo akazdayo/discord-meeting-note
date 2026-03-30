@@ -14,5 +14,8 @@
 		"turbo": "^2.5.0",
 		"typescript": "^5.8.0"
 	},
-	"packageManager": "pnpm@10.29.2"
+	"packageManager": "pnpm@10.29.2",
+	"pnpm": {
+		"onlyBuiltDependencies": ["@discordjs/opus"]
+	}
 }
