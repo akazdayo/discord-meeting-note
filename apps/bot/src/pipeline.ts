@@ -1,13 +1,13 @@
 import type { DatabaseService } from "@discord-meeting-note/database";
 import type { OpenAILLM } from "@discord-meeting-note/llm-openai";
-import type { WhisperTranscription } from "@discord-meeting-note/transcription-whisper";
+import type { MlxWhisperTranscription } from "@discord-meeting-note/transcription-mlx-whisper";
 import type { LLMMessage } from "@discord-meeting-note/types";
 import type { Client, SendableChannels } from "discord.js";
 
 export async function processSession(
 	sessionId: string,
 	db: DatabaseService,
-	transcriber: WhisperTranscription,
+	transcriber: MlxWhisperTranscription,
 	llm: OpenAILLM,
 	client: Client,
 ): Promise<void> {
@@ -55,7 +55,7 @@ export async function processSession(
 				: await buildTrackTranscript(tracks, transcriber, resolveDisplayName);
 		db.saveTranscript({
 			sessionId,
-			provider: "whisper",
+			provider: "mlx-whisper",
 			content: combinedTranscript || "(音声なし)",
 		});
 
@@ -88,7 +88,7 @@ export async function processSession(
 async function buildChronologicalTranscript(
 	sessionStartedAt: number,
 	utterances: ReturnType<DatabaseService["getSessionUtterances"]>,
-	transcriber: WhisperTranscription,
+	transcriber: MlxWhisperTranscription,
 	resolveDisplayName: (userId: string) => Promise<string>,
 ): Promise<string> {
 	const lines: string[] = [];
@@ -111,7 +111,7 @@ async function buildChronologicalTranscript(
 
 async function buildTrackTranscript(
 	tracks: ReturnType<DatabaseService["getSessionTracks"]>,
-	transcriber: WhisperTranscription,
+	transcriber: MlxWhisperTranscription,
 	resolveDisplayName: (userId: string) => Promise<string>,
 ): Promise<string> {
 	const parts: string[] = [];

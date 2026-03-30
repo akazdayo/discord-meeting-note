@@ -18,7 +18,7 @@ Discord のボイスチャンネルを録音し、文字起こし・要約を行
 - Node.js 18+
 - [mise](https://mise.jdx.dev/)
 - [ffmpeg](https://ffmpeg.org/)（libopus 付き）
-- [openai-whisper](https://github.com/openai/whisper)（Python）
+- [mlx-whisper](https://pypi.org/project/mlx-whisper/)（Python, Apple Silicon 向け）
 - OpenAI API キー
 - Discord Bot トークン
 
@@ -32,14 +32,16 @@ brew install ffmpeg
 apt install ffmpeg
 ```
 
-### Whisper のインストール
+### MLX Whisper のインストール
 
 ```sh
-pip install openai-whisper
+pip install mlx-whisper
 
-# 初回実行時にモデルをダウンロード（例: base モデル）
-whisper --model base --help
+# 動作確認
+mlx_whisper -h
 ```
+
+bot は `@discord-meeting-note/transcription-mlx-whisper` を使って `mlx_whisper` CLI で文字起こしします。
 
 ## セットアップ
 
@@ -62,8 +64,9 @@ mise exec -- pnpm build
 | `DISCORD_TOKEN` | ✅ | — | Discord Bot トークン |
 | `OPENAI_API_KEY` | ✅ | — | OpenAI API キー |
 | `OPENAI_MODEL` | | `gpt-4o-mini` | 要約に使用するモデル |
-| `WHISPER_CMD` | | `whisper` | Whisper CLI のパス |
-| `WHISPER_MODEL` | | `base` | Whisper モデルサイズ（`tiny` / `base` / `small` / `medium` / `large`） |
+| `MLX_WHISPER_CMD` | | `mlx_whisper` | MLX Whisper CLI のパス |
+| `MLX_WHISPER_MODEL` | | `mlx-community/whisper-base-mlx` | MLX Whisper のモデル識別子 |
+| `MLX_WHISPER_LANGUAGE` | | — | MLX Whisper に固定言語を渡す場合の言語コード |
 | `DATA_DIR` | | `./data` | DB・音声ファイルの保存先ディレクトリ |
 
 ## 起動
@@ -97,6 +100,7 @@ packages/
   shared/errors/   カスタムエラークラス
   transcription/
     core/          TranscriptionModel インターフェース
+    mlx-whisper/   MLX Whisper ローカル CLI 実装
     whisper/       Whisper ローカル CLI 実装
   llm/
     core/          LLMModel インターフェース
@@ -114,6 +118,8 @@ mise exec -- pnpm check
 
 # テスト
 mise exec -- pnpm --filter @discord-meeting-note/database test
+mise exec -- pnpm --filter @discord-meeting-note/bot build
+mise exec -- pnpm --filter @discord-meeting-note/transcription-mlx-whisper test
 mise exec -- pnpm --filter @discord-meeting-note/transcription-whisper test
 ```
 

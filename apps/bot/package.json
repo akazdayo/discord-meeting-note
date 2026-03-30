@@ -14,7 +14,7 @@
 		"@discord-meeting-note/database": "workspace:*",
 		"@discord-meeting-note/errors": "workspace:*",
 		"@discord-meeting-note/llm-openai": "workspace:*",
-		"@discord-meeting-note/transcription-whisper": "workspace:*",
+		"@discord-meeting-note/transcription-mlx-whisper": "workspace:*",
 		"@discord-meeting-note/types": "workspace:*",
 		"@discordjs/opus": "^0.10.0",
 		"@discordjs/voice": "^0.19.0",

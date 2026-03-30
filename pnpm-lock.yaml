@@ -35,9 +35,9 @@ importers:
       '@discord-meeting-note/llm-openai':
         specifier: workspace:*
         version: link:../../packages/llm/openai
-      '@discord-meeting-note/transcription-whisper':
+      '@discord-meeting-note/transcription-mlx-whisper':
         specifier: workspace:*
-        version: link:../../packages/transcription/whisper
+        version: link:../../packages/transcription/mlx-whisper
       '@discord-meeting-note/types':
         specifier: workspace:*
         version: link:../../packages/shared/types
@@ -204,6 +204,25 @@ importers:
       typescript:
         specifier: '*'
         version: 5.9.3
+
+  packages/transcription/mlx-whisper:
+    dependencies:
+      '@discord-meeting-note/errors':
+        specifier: workspace:*
+        version: link:../../shared/errors
+      '@discord-meeting-note/transcription-core':
+        specifier: workspace:*
+        version: link:../core
+      '@discord-meeting-note/types':
+        specifier: workspace:*
+        version: link:../../shared/types
+    devDependencies:
+      typescript:
+        specifier: '*'
+        version: 5.9.3
+      vitest:
+        specifier: '*'
+        version: 3.2.4(@types/node@25.5.0)(tsx@4.21.0)
 
   packages/transcription/whisper:
     dependencies:

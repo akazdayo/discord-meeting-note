@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { DatabaseService } from "@discord-meeting-note/database";
 import { OpenAILLM } from "@discord-meeting-note/llm-openai";
-import { WhisperTranscription } from "@discord-meeting-note/transcription-whisper";
+import { MlxWhisperTranscription } from "@discord-meeting-note/transcription-mlx-whisper";
 import { Client, GatewayIntentBits, REST, Routes } from "discord.js";
 import { startCleanupScheduler } from "./cleanup.js";
 import { type AppServices, createCommands } from "./commands/index.js";
@@ -23,7 +23,7 @@ const client = new Client({
 });
 
 const db = new DatabaseService(DB_PATH);
-const transcriber = new WhisperTranscription();
+const transcriber = new MlxWhisperTranscription();
 const llm = new OpenAILLM();
 const voiceManager = new VoiceManager(AUDIO_DIR);
 

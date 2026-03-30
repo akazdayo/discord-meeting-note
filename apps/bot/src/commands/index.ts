@@ -1,6 +1,6 @@
 import type { DatabaseService } from "@discord-meeting-note/database";
 import type { OpenAILLM } from "@discord-meeting-note/llm-openai";
-import type { WhisperTranscription } from "@discord-meeting-note/transcription-whisper";
+import type { MlxWhisperTranscription } from "@discord-meeting-note/transcription-mlx-whisper";
 import type { ChatInputCommandInteraction, Client } from "discord.js";
 import type { VoiceManager } from "../voice-manager.js";
 import { createExportCommand } from "./export.js";
@@ -10,7 +10,7 @@ import { createSummarizeCommand } from "./summarize.js";
 export interface AppServices {
 	voiceManager: VoiceManager;
 	db: DatabaseService;
-	transcriber: WhisperTranscription;
+	transcriber: MlxWhisperTranscription;
 	llm: OpenAILLM;
 	client: Client;
 	audioDir: string;

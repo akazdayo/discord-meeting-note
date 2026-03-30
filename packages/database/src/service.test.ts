@@ -170,14 +170,14 @@ describe("DatabaseService", () => {
 			});
 			db.saveTranscript({
 				sessionId: session.id,
-				provider: "whisper",
+				provider: "mlx-whisper",
 				content: "Hello world",
 			});
 
 			const transcript = db.getTranscript(session.id);
 			expect(transcript).toBeDefined();
 			expect(transcript?.content).toBe("Hello world");
-			expect(transcript?.provider).toBe("whisper");
+			expect(transcript?.provider).toBe("mlx-whisper");
 			expect(transcript?.sessionId).toBe(session.id);
 		});
 
