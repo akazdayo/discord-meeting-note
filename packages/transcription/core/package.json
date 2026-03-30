@@ -1,0 +1,19 @@
+{
+	"name": "@discord-meeting-note/transcription-core",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "tsc",
+		"check": "biome check --write .",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@discord-meeting-note/errors": "workspace:*",
+		"@discord-meeting-note/types": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "*"
+	}
+}
