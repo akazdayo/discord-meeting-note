@@ -7,13 +7,14 @@
 		"build": "tsc",
 		"dev": "node --env-file=../../.env --import tsx --watch src/index.ts",
 		"start": "node --env-file=../../.env dist/index.js",
-		"check": "biome check --write .",
+		"check": "biome check --write ./src",
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@discord-meeting-note/database": "workspace:*",
 		"@discord-meeting-note/errors": "workspace:*",
-		"@discord-meeting-note/llm-core": "workspace:*",
-		"@discord-meeting-note/transcription-core": "workspace:*",
+		"@discord-meeting-note/llm-openai": "workspace:*",
+		"@discord-meeting-note/transcription-whisper": "workspace:*",
 		"@discord-meeting-note/types": "workspace:*",
 		"@discordjs/opus": "^0.10.0",
 		"@discordjs/voice": "^0.19.0",

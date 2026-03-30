@@ -1,5 +1,5 @@
 {
-	"name": "@discord-meeting-note/transcription-whisper",
+	"name": "@discord-meeting-note/database",
 	"version": "0.0.0",
 	"private": true,
 	"main": "./dist/index.js",
@@ -12,10 +12,12 @@
 	},
 	"dependencies": {
 		"@discord-meeting-note/errors": "workspace:*",
-		"@discord-meeting-note/transcription-core": "workspace:*",
-		"@discord-meeting-note/types": "workspace:*"
+		"better-sqlite3": "^12.8.0",
+		"drizzle-orm": "^0.44.0",
+		"ulid": "^2.3.0"
 	},
 	"devDependencies": {
+		"@types/better-sqlite3": "^7.6.13",
 		"typescript": "*",
 		"vitest": "*"
 	}

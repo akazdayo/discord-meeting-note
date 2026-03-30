@@ -1,21 +1,104 @@
+import { execFile } from "node:child_process";
 import { EventEmitter } from "node:events";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { promisify } from "node:util";
+import { DiscordError } from "@discord-meeting-note/errors";
 import {
 	EndBehaviorType,
-	VoiceConnectionStatus,
 	getVoiceConnection,
 	joinVoiceChannel,
 	type VoiceConnection,
+	VoiceConnectionStatus,
 } from "@discordjs/voice";
-import { DiscordError } from "@discord-meeting-note/errors";
-import type { AudioBuffer } from "@discord-meeting-note/types";
 import type { VoiceBasedChannel } from "discord.js";
 import prism from "prism-media";
+
+const execFileAsync = promisify(execFile);
+
+interface TimestampedChunk {
+	userId: string;
+	timestamp: number;
+	data: Buffer;
+}
 
 export class VoiceManager extends EventEmitter {
 	private guildId: string | null = null;
 	private activeStreams = new Set<string>();
+	private recordingChunks: TimestampedChunk[] = [];
+	private currentSessionId: string | null = null;
+	private _isRecording = false;
 
-	join(channel: VoiceBasedChannel): void {
+	constructor(private readonly audioDir: string) {
+		super();
+	}
+
+	get isRecording(): boolean {
+		return this._isRecording;
+	}
+
+	get sessionId(): string | null {
+		return this.currentSessionId;
+	}
+
+	startSession(channel: VoiceBasedChannel, sessionId: string): void {
+		this._isRecording = true;
+		this.currentSessionId = sessionId;
+		this.recordingChunks = [];
+		this.join(channel);
+	}
+
+	async stopSession(): Promise<string | null> {
+		if (!this.currentSessionId) {
+			throw new Error("No active recording session");
+		}
+		const sessionId = this.currentSessionId;
+		this._isRecording = false;
+		this.leave();
+
+		if (this.recordingChunks.length === 0) {
+			this.currentSessionId = null;
+			return null;
+		}
+
+		// Sort chunks by timestamp and concatenate PCM
+		const sorted = [...this.recordingChunks].sort(
+			(a, b) => a.timestamp - b.timestamp,
+		);
+		const pcm = Buffer.concat(sorted.map((c) => c.data));
+
+		// Write temp PCM file
+		const tmpPcm = path.join(os.tmpdir(), `${sessionId}.pcm`);
+		const oggPath = path.join(this.audioDir, `${sessionId}.ogg`);
+
+		fs.writeFileSync(tmpPcm, pcm);
+		try {
+			await execFileAsync("ffmpeg", [
+				"-y",
+				"-f",
+				"s16le",
+				"-ar",
+				"48000",
+				"-ac",
+				"2",
+				"-i",
+				tmpPcm,
+				"-c:a",
+				"libopus",
+				oggPath,
+			]);
+		} finally {
+			fs.rmSync(tmpPcm, { force: true });
+		}
+
+		this.recordingChunks = [];
+		this.currentSessionId = null;
+
+		return oggPath;
+	}
+
+	private join(channel: VoiceBasedChannel): void {
 		this.guildId = channel.guild.id;
 
 		const connection = joinVoiceChannel({
@@ -60,22 +143,18 @@ export class VoiceManager extends EventEmitter {
 				rate: 48000,
 			});
 
-			const chunks: Buffer[] = [];
-
 			stream.pipe(decoder).on("data", (chunk: Buffer) => {
-				chunks.push(chunk);
+				if (this._isRecording) {
+					this.recordingChunks.push({
+						userId,
+						timestamp: Date.now(),
+						data: chunk,
+					});
+				}
 			});
 
 			stream.on("end", () => {
 				this.activeStreams.delete(userId);
-				if (chunks.length === 0) return;
-
-				const data = Buffer.concat(chunks);
-				// 48000 samples/sec * 2 channels * 2 bytes/sample (16-bit PCM)
-				const durationMs = (data.length / (48000 * 2 * 2)) * 1000;
-
-				const audio: AudioBuffer = { data, sampleRate: 48000, channels: 2, durationMs };
-				this.emit("audioSegment", userId, audio);
 			});
 
 			stream.on("error", (error) => {

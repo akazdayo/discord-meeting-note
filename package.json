@@ -12,10 +12,11 @@
 		"@biomejs/biome": "2.4.6",
 		"@types/node": "^25.5.0",
 		"turbo": "^2.5.0",
-		"typescript": "^5.8.0"
+		"typescript": "^5.8.0",
+		"vitest": "^3.0.0"
 	},
 	"packageManager": "pnpm@10.29.2",
 	"pnpm": {
-		"onlyBuiltDependencies": ["@discordjs/opus"]
+		"onlyBuiltDependencies": ["@discordjs/opus", "better-sqlite3"]
 	}
 }

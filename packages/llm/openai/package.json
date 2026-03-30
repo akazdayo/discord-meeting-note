@@ -10,8 +10,10 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@discord-meeting-note/errors": "workspace:*",
 		"@discord-meeting-note/llm-core": "workspace:*",
-		"@discord-meeting-note/types": "workspace:*"
+		"@discord-meeting-note/types": "workspace:*",
+		"openai": "^4.77.0"
 	},
 	"devDependencies": {
 		"typescript": "*"
