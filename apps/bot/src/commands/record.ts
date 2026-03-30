@@ -65,9 +65,18 @@ export function createRecordCommand(services: AppServices): Command {
 				requestedBy: interaction.user.id,
 			});
 
-			voiceManager.startSession(channel, session.id);
+			await interaction.deferReply();
 
-			await interaction.reply(
+			try {
+				await voiceManager.startSession(channel, session.id);
+			} catch (err) {
+				console.error("Failed to join voice channel:", err);
+				db.updateSessionStatus(session.id, "failed");
+				await interaction.editReply("ボイスチャンネルへの接続に失敗しました。");
+				return;
+			}
+
+			await interaction.editReply(
 				`録音を開始しました。セッション ID: \`${session.id}\`\n停止するには \`/record stop\` を使用してください。`,
 			);
 		} else if (sub === "stop") {
