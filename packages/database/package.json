@@ -13,7 +13,7 @@
 	"dependencies": {
 		"@discord-meeting-note/errors": "workspace:*",
 		"better-sqlite3": "^12.8.0",
-		"drizzle-orm": "^0.44.0",
+		"drizzle-orm": "^0.45.2",
 		"ulid": "^2.3.0"
 	},
 	"devDependencies": {
